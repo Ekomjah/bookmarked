@@ -10,7 +10,7 @@ async function main() {
 
   const app = createApp();
   app.listen(PORT, () => {
-    console.log(`Bookmarked API listening on port ${PORT}`);
+    console.log(`Bookmarked API listening on port http://localhost:${PORT}`);
   });
 }
 
