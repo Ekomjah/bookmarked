@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { addReaction } from "@/lib/api";
+import { FormEvent, useState } from "react";
+import { addReaction, deleteResource, reportResource, updateResource } from "@/lib/api";
 import { AuthState, Reaction, Resource } from "@/lib/types";
 
 // Starter emoji set - deliberately small. See the "add another reaction
 // emoji option" good-first-issue for extending this.
-const REACTION_OPTIONS = ["⭐", "🔖"];
+export const REACTION_OPTIONS = ["⭐", "🔖"];
 
 export function groupReactions(reactions: Reaction[]): Record<string, number> {
   const groups: Record<string, number> = {};
@@ -20,12 +20,64 @@ interface ResourceCardProps {
   resource: Resource;
   auth: AuthState | null;
   onUpdated: (resource: Resource) => void;
+  onDeleted: (resourceId: string) => void;
 }
 
-export default function ResourceCard({ resource, auth, onUpdated }: ResourceCardProps) {
+export default function ResourceCard({ resource, auth, onUpdated, onDeleted }: ResourceCardProps) {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const reactionGroups = groupReactions(resource.reactions || []);
+  const canDelete = !!auth && (auth.user.role === "moderator" || auth.user.id === resource.submittedBy?.id);
+  const isOwner = !!auth && auth.user.id === resource.submittedBy?.id;
+  const [reported, setReported] = useState(false);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(resource.title);
+  const [editUrl, setEditUrl] = useState(resource.url);
+  const [editDescription, setEditDescription] = useState(resource.description);
+  const [editTagsInput, setEditTagsInput] = useState(resource.tags.join(", "));
+
+  function startEditing() {
+    setEditTitle(resource.title);
+    setEditUrl(resource.url);
+    setEditDescription(resource.description);
+    setEditTagsInput(resource.tags.join(", "));
+    setError(null);
+    setIsEditing(true);
+  }
+
+  async function handleEditSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!auth) return;
+    setError(null);
+
+    const tags = editTagsInput.split(",").map((t) => t.trim()).filter(Boolean);
+
+    try {
+      const { resource: updated } = await updateResource(
+        resource.id,
+        { title: editTitle, url: editUrl, description: editDescription, tags },
+        auth.token,
+      );
+      onUpdated(updated);
+      setIsEditing(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    }
+  }
+
+async function handleReport() {
+if(!auth) return;
+setError(null);
+try{
+const {resource: updated} =await reportResource(resource.id,auth.token);
+onUpdated(updated);
+setReported(true);
+}catch(err){
+setError(err instanceof Error ? err.message: "Something went wrong");
+}
+
+}
 
   async function handleCopyLink() {
     try {
@@ -51,6 +103,64 @@ export default function ResourceCard({ resource, auth, onUpdated }: ResourceCard
     }
   }
 
+  async function handleDelete() {
+    if (!auth || !canDelete) return;
+
+    const confirmed = window.confirm("Are you sure you want to delete this resource?");
+
+    if (!confirmed) return;
+
+    setError(null);
+
+    try {
+      await deleteResource(resource.id, auth.token);
+      onDeleted(resource.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    }
+
+  }
+
+  if (isEditing) {
+    return (
+      <article className="resource-card">
+        <form className="resource-form" onSubmit={handleEditSubmit}>
+          <input
+            type="text"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            maxLength={200}
+            required
+          />
+          <input
+            type="text"
+            value={editUrl}
+            onChange={(e) => setEditUrl(e.target.value)}
+            required
+          />
+          <textarea
+            value={editDescription}
+            onChange={(e) => setEditDescription(e.target.value)}
+            maxLength={1000}
+          />
+          <input
+            type="text"
+            value={editTagsInput}
+            onChange={(e) => setEditTagsInput(e.target.value)}
+            placeholder="Tags, comma separated"
+          />
+          <div className="edit-actions">
+            <button type="submit">Save</button>
+            <button type="button" onClick={() => setIsEditing(false)}>
+              Cancel
+            </button>
+          </div>
+          {error && <p className="error">{error}</p>}
+        </form>
+      </article>
+    );
+  }
+
   return (
     <article className="resource-card">
       <header>
@@ -69,6 +179,11 @@ export default function ResourceCard({ resource, auth, onUpdated }: ResourceCard
         >
           {copied ? "Copied!" : "Copy link"}
         </button>
+        {isOwner && (
+          <button type="button" className="edit-button" onClick={startEditing}>
+            Edit
+          </button>
+        )}
       </header>
       {resource.tags?.length > 0 && (
         <div className="tags">
@@ -79,9 +194,25 @@ export default function ResourceCard({ resource, auth, onUpdated }: ResourceCard
           ))}
         </div>
       )}
-      {resource.description && <p className="resource-description">{resource.description}</p>}
+      {resource.description && (
+        <p className="resource-description">{resource.description}</p>
+      )}
       <footer>
+        <a className="resource-title-details" href={`/${resource.id}`}>
+          View Details
+        </a>
         <time>{new Date(resource.createdAt).toLocaleString()}</time>
+        <div className="actions">
+          {canDelete && (
+          <button
+            type="button"
+            className="delete-button"
+            onClick={handleDelete}
+          >
+            Delete
+          </button>
+        )}
+
         <div className="reactions">
           {Object.entries(reactionGroups).map(([emoji, count]) => (
             <span key={emoji} className="reaction-count">
@@ -100,6 +231,12 @@ export default function ResourceCard({ resource, auth, onUpdated }: ResourceCard
               </button>
             ))}
         </div>
+        </div>
+        {auth && (
+  <button type="button" onClick={handleReport} disabled={reported}>
+    {reported ? "Reported" : "Report broken link"}
+  </button>
+)}
       </footer>
       {error && <p className="error">{error}</p>}
     </article>
