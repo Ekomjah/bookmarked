@@ -54,7 +54,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 // POST /api/resources
 router.post("/", requireAuth, async (req: Request, res: Response) => {
   try {
-    const { title, url, description, tags } = req.body;
+    const { title, url, description, tags, confirmDuplicate } = req.body;
 
     if (!title || !title.trim()) {
       return res.status(400).json({ error: "title is required and cannot be empty" });
@@ -78,6 +78,20 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
     const normalizedTags: string[] = Array.isArray(tags)
       ? tags.map((tag: string) => tag.trim().toLowerCase()).filter(Boolean)
       : [];
+
+    const duplicate = await prisma.resource.findFirst({
+      where: { url: normalizedUrl },
+    });
+    if (duplicate && !confirmDuplicate) {
+      return res.status(409).json({
+        detail: "A resource with this URL already exists. Do you still want to add it?",
+        duplicate: {
+          id: duplicate.id,
+          title: duplicate.title,
+          url: duplicate.url,
+        },
+      });
+    }
 
     const resource = await prisma.resource.create({
       data: {
@@ -248,11 +262,11 @@ router.delete("/:id/reactions/:reactionId", requireAuth, async (req: Request, re
   }
 });
 
-// POST /api/resources/:id/report
+// POST /api/resources/:id/repor
 router.post("/:id/report", requireAuth, async (req: Request, res: Response)=>{
   try{
 
-    
+
     const resource = await prisma.resource.findUnique({ where: { id: req.params.id } });
     if (!resource) {
       return res.status(404).json({ error: "Resource not found" });

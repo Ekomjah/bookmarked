@@ -8,6 +8,16 @@ interface RequestOptions {
   token?: string;
 }
 
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    public data: any,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
 async function request<T>(path: string, { method = "GET", body, token }: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) {
@@ -25,7 +35,7 @@ async function request<T>(path: string, { method = "GET", body, token }: Request
 
   if (!res.ok) {
     const message = data && data.error ? data.error : `Request failed with status ${res.status}`;
-    throw new Error(message);
+    throw new ApiError(res.status, data, message);
   }
 
   return data as T;
@@ -52,7 +62,7 @@ export function listResources(params: { tag?: string; submittedBy?: string } = {
 }
 
 export function createResource(
-  input: { title: string; url: string; description: string; tags: string[] },
+  input: { title: string; url: string; description: string; tags: string[]; confirmDuplicate?: boolean },
   token: string
 ) {
   return request<{ resource: Resource }>("/api/resources", { method: "POST", body: input, token });
