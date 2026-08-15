@@ -6,7 +6,7 @@ import { Resource } from "@/lib/types";
 import AuthPanel from "./components/AuthPanel";
 import ResourceForm from "./components/ResourceForm";
 import Feed from "./components/Feed";
-import DownloadData from "./components/downloadData";
+import DownloadMenu from "./components/DownloadMenu";
 import { useSocket } from "@/lib/useSocket";
 
 export default function HomePage() {
@@ -23,11 +23,13 @@ export default function HomePage() {
       <section>
         <h2>Share a resource</h2>
         <ResourceForm auth={auth} />
-        <DownloadData token={auth?.token} />
       </section>
 
       <section>
-        <h2>My Feed</h2>
+        <div className="section-header">
+          <h2>My Feed</h2>
+          <DownloadMenu token={auth?.token} />
+        </div>
         <Feed auth={auth} socket={socket} />
       </section>
     </main>
