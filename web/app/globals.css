@@ -105,8 +105,84 @@ section {
   font-family: var(--font-ui);
   border: 1px solid #ccc;
   border-radius: 4px;
-  flex: 1;
-  min-width: 140px;
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.auth-panel .auth-field {
+  position: relative;
+  flex: 1 1 100%;
+}
+
+.auth-panel .auth-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  flex: 1 1 100%;
+}
+
+.auth-panel .auth-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.auth-panel .auth-col > .auth-field {
+  flex: 0 0 auto;
+}
+
+.auth-panel .auth-col .error {
+  flex: 0 0 auto;
+  margin: 0.1rem 0 0;
+}
+
+.auth-panel .auth-field input {
+  width: 100%;
+  padding-right: 2.5rem;
+}
+
+.auth-panel input[aria-invalid="true"] {
+  border-color: #c62828;
+}
+
+.auth-panel .auth-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.auth-panel .auth-password-toggle:hover {
+  color: #1f2937;
+  background: #f2f4f7;
+}
+
+.auth-panel .auth-password-toggle:focus-visible {
+  outline: 2px solid rgba(47, 111, 218, 0.4);
+  outline-offset: 1px;
+}
+
+.auth-panel .auth-submit {
+  flex: 1 1 100%;
+}
+
+.auth-panel .error {
+  flex: 1 1 100%;
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
 }
 
 .auth-panel button {
