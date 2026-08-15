@@ -1,6 +1,7 @@
 import express, { Request, Response } from "express";
 import { prisma } from "../db";
 import { requireAuth } from "../middleware/auth";
+import { resourcesToCsv } from "../utils/csv";
 import { error } from "console";
 
 const router = express.Router();
@@ -12,6 +13,47 @@ const resourceInclude = {
     orderBy: { createdAt: "asc" as const },
   },
 };
+type ExportFormat = "csv" | "json";
+
+function isValidFormat(value: unknown): value is ExportFormat {
+  return value === "csv" || value === "json";
+}
+
+// GET /api/resources/export?format=csv|json
+router.get("/export", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const format: string = typeof req.query.format === "string" ? req.query.format : "json";
+
+    if (!isValidFormat(format)) {
+      return res.status(400).json({ error: "format must be 'csv' or 'json'" });
+    }
+
+    const resources = await prisma.resource.findMany({
+      where: { submittedById: req.user!.id },
+      select: {
+        title: true,
+        url: true,
+        tags: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (format === "csv") {
+      const csv = resourcesToCsv(resources);
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="my-resources-${new Date().toISOString().slice(0, 10)}.csv"`
+      );
+      return res.status(200).send(csv);
+    }
+
+    return res.status(200).json({ resources });
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to export resources" });
+  }
+});
 
 // GET /api/resources?tag=<tag>&submittedBy=<userId>
 router.get("/", async (req: Request, res: Response) => {
@@ -66,14 +108,14 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
 
     const normalizedUrl = url.trim();
 
-	  if (
-		!normalizedUrl.startsWith("http://") &&
-		!normalizedUrl.startsWith("https://")
-	  ) {
-		return res
-			.status(400)
-			.json({ error: "url must start with http:// or https://" });
-	  }
+    if (
+      !normalizedUrl.startsWith("http://") &&
+      !normalizedUrl.startsWith("https://")
+    ) {
+      return res
+        .status(400)
+        .json({ error: "url must start with http:// or https://" });
+    }
 
     const normalizedTags: string[] = Array.isArray(tags)
       ? tags.map((tag: string) => tag.trim().toLowerCase()).filter(Boolean)
@@ -262,28 +304,31 @@ router.delete("/:id/reactions/:reactionId", requireAuth, async (req: Request, re
   }
 });
 
-// POST /api/resources/:id/repor
-router.post("/:id/report", requireAuth, async (req: Request, res: Response)=>{
-  try{
+// POST /api/resources/:id/report
+router.post("/:id/report", requireAuth, async (req: Request, res: Response) => {
+  try {
 
 
     const resource = await prisma.resource.findUnique({ where: { id: req.params.id } });
     if (!resource) {
-      return res.status(404).json({ error: "Resource not found" });
+      return res.status(404).json({ error: "Resource is not found" });
     }
 
-    const update = await prisma.resource.update({where : {
-      id: resource.id
-    },
-  data: { reportCount: {increment: 1}},
-  include: resourceInclude,
-});
+    const update = await prisma.resource.update({
+      where: {
+        id: resource.id
+      },
+      data: { reportCount: { increment: 1 } },
+      include: resourceInclude,
+    });
 
-return res.status(200).json({ resource: update });
+    return res.status(200).json({ resource: update });
 
-  }catch (err){
- return res.status(400).json({ error: "Invalid resource id" });
+  } catch (err) {
+    return res.status(400).json({ error: "Invalid resource id" });
   }
 })
+
+
 
 export default router;
