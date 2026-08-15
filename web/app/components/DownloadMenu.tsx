@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Check,
   ChevronDown,
+  ChevronUp,
   Download,
   FileJson,
   FileSpreadsheet,
@@ -17,9 +18,9 @@ const FORMATS: ReadonlyArray<{
   label: string;
   icon: typeof FileJson;
 }> = [
-  { value: "csv", label: "CSV", icon: FileSpreadsheet },
-  { value: "json", label: "JSON", icon: FileJson },
-];
+    { value: "csv", label: "CSV", icon: FileSpreadsheet },
+    { value: "json", label: "JSON", icon: FileJson },
+  ];
 
 interface DownloadMenuProps {
   token?: string;
@@ -110,7 +111,11 @@ export default function DownloadMenu({ token }: DownloadMenuProps) {
           aria-expanded={open}
           aria-label="Choose export format"
         >
-          <ChevronDown size={16} strokeWidth={2} aria-hidden="true" />
+          {open ? (
+            <ChevronUp size={16} strokeWidth={2} aria-hidden="true" />
+          ) : (
+            <ChevronDown size={16} strokeWidth={2} aria-hidden="true" />
+          )}
         </button>
       </div>
 
