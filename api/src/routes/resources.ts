@@ -183,6 +183,12 @@ router.get("/:id", async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/resources/trending?days=7
+router.get('/trending', async (req: Request, res: Response) => {
+  const query = req.query.days as string | undefined;
+
+});
+
 // POST /api/resources
 router.post("/", requireAuth, async (req: Request, res: Response) => {
   try {
