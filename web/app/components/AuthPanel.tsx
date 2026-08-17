@@ -18,6 +18,7 @@ export default function AuthPanel({
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -39,6 +40,13 @@ export default function AuthPanel({
     e.preventDefault();
     setError(null);
     setLoading(true);
+
+    if (mode === "register" && password !== confirmPassword) {
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
+    }
+
     try {
       const result =
         mode === "login"
@@ -95,6 +103,17 @@ export default function AuthPanel({
         required
         minLength={8}
       />
+
+      {mode === "register" && (
+        <input
+          type="password"
+          placeholder="Confirm password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
+          minLength={8}
+        />
+      )}
       <button type="submit" disabled={loading}>
         {loading
           ? "Please wait..."

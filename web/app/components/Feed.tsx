@@ -5,6 +5,7 @@ import type { Socket } from "socket.io-client";
 import { listResources } from "@/lib/api";
 import { AuthState, Resource } from "@/lib/types";
 import ResourceCard from "./ResourceCard";
+import TagFilter from "./TagFilter";
 
 interface FeedProps {
   auth: AuthState | null;
@@ -96,17 +97,7 @@ export default function Feed({ auth, socket }: FeedProps) {
   return (
     <div className="feed">
       <div className="filter-bar">
-        <select
-          value={tagFilter}
-          onChange={(e) => setTagFilter(e.target.value)}
-        >
-          <option value="">All tags</option>
-          {tags.map((tag) => (
-            <option key={tag} value={tag}>
-              {tag}
-            </option>
-          ))}
-        </select>
+        <TagFilter tags={tags} value={tagFilter} onChange={setTagFilter} />
         {auth && (
           <label className="mine-toggle">
             <input
@@ -120,12 +111,12 @@ export default function Feed({ auth, socket }: FeedProps) {
       </div>
 
       {error && <p className="error">{error}</p>}
-      {loading && <p className="hint">Loading resources...</p>}
+      {loading && <p className="hint">Getting resources ready...</p>}
       {!loading && resources.length === 0 && (
         <p className="hint">
           {mineOnly
-            ? "You haven't submitted any resources yet."
-            : "No resources yet."}
+            ? "You haven't submitted any resources yet. Add one now!"
+            : "No resources found yet. Be first to create one."}
         </p>
       )}
 
