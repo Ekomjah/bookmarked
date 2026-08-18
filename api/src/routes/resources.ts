@@ -165,6 +165,8 @@ router.get("/tag-counts", async (_req: Request, res: Response) => {
   }
 });
 
+// TODO: WIRE TRENDING ENDPOINT
+
 // GET /api/resources/:id
 router.get("/:id", async (req: Request, res: Response) => {
   try {

@@ -3,6 +3,7 @@ import { createApp } from "../app";
 import { clearTestDB, disconnectTestDB } from "./setup";
 import { prisma } from "../db";
 import { hashPassword } from "../utils/password";
+import { subDays } from "date-fns";
 
 const app = createApp();
 
@@ -246,7 +247,7 @@ describe("GET /api/resources/leaderboard", () => {
   it("ranks contributors by count descending, excluding zero-resource users", async () => {
     const alice = await registerAndLogin("alice@example.com");
     const bob = await registerAndLogin("bob@example.com");
-    await registerAndLogin("carol@example.com"); // submits nothing
+    await registerAndLogin("carol@example.com");
 
     await request(app)
       .post("/api/resources")
@@ -273,6 +274,82 @@ describe("GET /api/resources/leaderboard", () => {
       user: { id: bob.user.id },
       count: 1,
     });
+  });
+});
+
+describe("GET /api/resources/trending?days=7", () => {
+  it("returns an empty array when no resources are trending", async () => {
+    const res = await request(app).get(`/api/resources/trending?days=7`)
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual([]);
+  });
+
+  it.each([7, 14, 30])("ranks posts based on reactions within a given time window (%i)", async (day) => {
+    const { token: ownerToken } = await registerAndLogin("owner3@example.com");
+    const { token: secondOwnerToken } = await registerAndLogin("owner2@example.com");
+    const { token: thirdOwnerToken } = await registerAndLogin("owner1@example.com");
+    const { token: firstOtherToken } = await registerAndLogin("other@example.com");
+    const { token: oldReactionToken } = await registerAndLogin("other2@example.com");
+
+    const createRes1 = await request(app)
+      .post("/api/resources")
+      .set("Authorization", `Bearer ${ownerToken}`)
+      .send({ title: "Docker in a month of lunches", url: "https://docker.example.com" });
+
+    const createRes2 = await request(app)
+      .post("/api/resources")
+      .set("Authorization", `Bearer ${secondOwnerToken}`)
+      .send({ title: "Learning Go", url: "https://go.example.com" });
+
+    const boringRes = await request(app)
+      .post("/api/resources")
+      .set("Authorization", `Bearer ${thirdOwnerToken}`)
+      .send({ title: "Boring Git", url: "https://git.example.com" });
+
+    const resourceId1 = createRes1.body.resource.id;
+    const resourceId2 = createRes2.body.resource.id;
+    const resourceId3 = boringRes.body.resource.id
+
+    await request(app)
+      .post(`/api/resources/${resourceId1}/reactions`)
+      .set("Authorization", `Bearer ${ownerToken}`)
+      .send({ emoji: "⭐" });
+
+
+    await request(app)
+      .post(`/api/resources/${resourceId1}/reactions`)
+      .set("Authorization", `Bearer ${firstOtherToken}`)
+      .send({ emoji: "⭐" });
+
+
+    await request(app)
+      .post(`/api/resources/${resourceId2}/reactions`)
+      .set("Authorization", `Bearer ${secondOwnerToken}`)
+      .send({ emoji: "👍" });
+
+    const reactRes3 = await request(app)
+      .post(`/api/resources/${resourceId1}/reactions`)
+      .set("Authorization", `Bearer ${oldReactionToken}`)
+      .send({ emoji: "⭐" });
+
+    const backDatedReactionId = reactRes3.body.resource.reactions[0].id;
+
+    const currentDay = new Date()
+    const somePastDate = subDays(currentDay, day + 3);
+
+    await prisma.reaction.update({
+      where: { id: backDatedReactionId },
+      data: { createdAt: somePastDate }
+    })
+
+    const res = await request(app).get(`/api/resources/trending?days=${day}`)
+    expect(res.status).toBe(200)
+    expect(res.body.trending).toHaveLength(2)
+    expect(res.body.trending[0].count).toBe(3)
+    expect(res.body.trending[1].count).toBe(1)
+    expect(res.body.trending[0].resource.id).toBe(resourceId1);
+    expect(res.body.trending[1].resource.id).toBe(resourceId2);
+    expect(res.body.trending).not.toContain(resourceId3)
   });
 });
 
