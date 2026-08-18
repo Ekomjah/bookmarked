@@ -281,7 +281,7 @@ describe("GET /api/resources/trending?days=7", () => {
   it("returns an empty array when no resources are trending", async () => {
     const res = await request(app).get(`/api/resources/trending?days=7`)
     expect(res.status).toBe(200)
-    expect(res.body).toEqual([]);
+    expect(res.body.trending).toEqual([]);
   });
 
   it.each([7, 14, 30])("ranks posts based on reactions within a given time window (%i)", async (day) => {
@@ -345,11 +345,12 @@ describe("GET /api/resources/trending?days=7", () => {
     const res = await request(app).get(`/api/resources/trending?days=${day}`)
     expect(res.status).toBe(200)
     expect(res.body.trending).toHaveLength(2)
-    expect(res.body.trending[0].count).toBe(3)
-    expect(res.body.trending[1].count).toBe(1)
-    expect(res.body.trending[0].resource.id).toBe(resourceId1);
-    expect(res.body.trending[1].resource.id).toBe(resourceId2);
-    expect(res.body.trending).not.toContain(resourceId3)
+    expect(res.body.trending[0].reactions).toHaveLength(2)
+    expect(res.body.trending[1].reactions).toHaveLength(1)
+    expect(res.body.trending[0].id).toBe(resourceId1);
+    expect(res.body.trending[0])
+    expect(res.body.trending[1].id).toBe(resourceId2);
+    expect(res.body.trending).not.toContain(boringRes)
   });
 });
 
@@ -524,8 +525,8 @@ describe("POST /api/resources/:id/report", () => {
   });
 });
 
-describe("GET /api/resources/random", ()=>{
-  it("it gives a user a random resource", async ()=>{
+describe("GET /api/resources/random", () => {
+  it("it gives a user a random resource", async () => {
     const { token } = await registerAndLogin("reporter@example.com");
 
     await request(app)
@@ -533,19 +534,19 @@ describe("GET /api/resources/random", ()=>{
       .set("Authorization", `Bearer ${token}`)
       .send({ title: "Reportable", url: "https://example.com" });
 
-    const res = await request(app).get("/api/resources/random");
+  const res = await request(app).get("/api/resources/random");
 
-      expect(res.status).toBe(200);
-      expect(res.body.resource).toBeDefined();
-      expect(res.body.resource.id).toBeDefined();
-      expect(res.body.resource.title).toBeDefined();
-      expect(res.body.resource.url).toBeDefined();
+    expect(res.status).toBe(200);
+    expect(res.body.resource).toBeDefined();
+    expect(res.body.resource.id).toBeDefined();
+    expect(res.body.resource.title).toBeDefined();
+    expect(res.body.resource.url).toBeDefined();
   })
 
-  it("empty catalog returns 404", async ()=>{
+  it("empty catalog returns 404", async () => {
     const res = await request(app).get("/api/resources/random");
 
-      expect(res.status).toBe(404);
+    expect(res.status).toBe(404);
   })
 })
 

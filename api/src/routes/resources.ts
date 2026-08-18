@@ -127,7 +127,7 @@ router.get("/trending", async (req: Request, res: Response) => {
   const removeResourcesWithoutReaction = trending.filter(resource => resource.reactions.length > 0)
   const trendingResources = removeResourcesWithoutReaction.sort((a, b) => b.reactions.length - a.reactions.length)
 
-  return res.json({ resources: trendingResources });
+  return res.json({ trending: trendingResources });
 });
 
 
@@ -206,12 +206,6 @@ router.get("/:id", async (req: Request, res: Response) => {
   } catch (err) {
     return res.status(400).json({ error: "Invalid resource id" });
   }
-});
-
-// GET /api/resources/trending?days=7
-router.get('/trending', async (req: Request, res: Response) => {
-  const query = req.query.days as string | undefined;
-
 });
 
 // POST /api/resources
