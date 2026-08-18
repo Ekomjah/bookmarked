@@ -2,6 +2,7 @@ import express, { Request, Response } from "express";
 import { prisma } from "../db";
 import { requireAuth } from "../middleware/auth";
 import { resourcesToCsv } from "../utils/csv";
+import { subDays } from "date-fns";
 
 const router = express.Router();
 
@@ -107,6 +108,29 @@ router.get("/leaderboard", async (_req: Request, res: Response) => {
   }
 });
 
+// TODO: WIRE TRENDING ENDPOINT
+// GET /api/resources/trending?days=7
+router.get("/trending", async (req: Request, res: Response) => {
+  const days = req.query.days ? parseInt(req.query.days as string) : 7;
+  const cutOff = subDays(new Date(), days);
+  const trending = await prisma.resource.findMany({
+    include: {
+      submittedBy: { select: { id: true, displayName: true, email: true } },
+      reactions: {
+        where: { createdAt: { gte: cutOff } },
+        include: { user: { select: { id: true, displayName: true, email: true } } },
+        orderBy: { createdAt: "asc" as const },
+      },
+    },
+  });
+
+  const removeResourcesWithoutReaction = trending.filter(resource => resource.reactions.length > 0)
+  const trendingResources = removeResourcesWithoutReaction.sort((a, b) => b.reactions.length - a.reactions.length)
+
+  return res.json({ resources: trendingResources });
+});
+
+
 // GET /api/resources/random
 // Registered before "/:id" so it is not matched as a resource id.
 router.get("/random", async (req: Request, res: Response) => {
@@ -165,14 +189,6 @@ router.get("/tag-counts", async (_req: Request, res: Response) => {
   }
 });
 
-// TODO: WIRE TRENDING ENDPOINT
-// GET /api/resources/trending?days=7
-router.get("/trending", async (req: Request, res: Response) => {
-  const days = req.query.days ? parseInt(req.query.days as string) : 7;
-
-  const db
-  
-});
 
 // GET /api/resources/:id
 router.get("/:id", async (req: Request, res: Response) => {

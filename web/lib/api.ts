@@ -178,3 +178,8 @@ export function removeReaction(
     { method: "DELETE", token },
   );
 }
+
+export function listTrendingResources(days: number | null) {
+  const query = days !== null && days > 0 ? `?days=${days}` : "";
+  return request<{ resources: Resource[] }>(`/api/resources/trending${query}`);
+}

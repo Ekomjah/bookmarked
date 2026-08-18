@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Socket } from "socket.io-client";
-import { listResources } from "@/lib/api";
+import { listResources, listTrendingResources } from "@/lib/api";
 import { AuthState, Resource } from "@/lib/types";
 import ResourceCard from "./ResourceCard";
 import TagFilter from "./TagFilter";
@@ -17,11 +17,32 @@ export default function Feed({ auth, socket }: FeedProps) {
   const [tagFilter, setTagFilter] = useState("");
   const [mineOnly, setMineOnly] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [days, setDays] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!auth) setMineOnly(false);
   }, [auth]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    listTrendingResources(days)
+      .then(({ resources: fetched }) => {
+        if (!cancelled) setResources(fetched);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Something went wrong");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [days]);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,6 +119,13 @@ export default function Feed({ auth, socket }: FeedProps) {
     <div className="feed">
       <div className="filter-bar">
         <TagFilter tags={tags} value={tagFilter} onChange={setTagFilter} />
+        <select value={days ?? ""} onChange={(e) => setDays(e.target.value === "" ? null : Number(e.target.value))}>
+          <option value="">All time</option>
+          <option value="1">Today</option>
+          <option value="7">Last 7 days</option>
+          <option value="14">Last 14 days</option>
+          <option value="30">Last 30 days</option>
+        </select>
         {auth && (
           <label className="mine-toggle">
             <input
