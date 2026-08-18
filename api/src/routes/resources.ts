@@ -166,6 +166,13 @@ router.get("/tag-counts", async (_req: Request, res: Response) => {
 });
 
 // TODO: WIRE TRENDING ENDPOINT
+// GET /api/resources/trending?days=7
+router.get("/trending", async (req: Request, res: Response) => {
+  const days = req.query.days ? parseInt(req.query.days as string) : 7;
+
+  const db
+  
+});
 
 // GET /api/resources/:id
 router.get("/:id", async (req: Request, res: Response) => {
