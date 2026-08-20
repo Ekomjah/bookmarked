@@ -464,28 +464,44 @@ describe("GET /api/resources/leaderboard", () => {
   });
 });
 
-describe("GET /api/resources/random", () => {
-  it("it gives a user a random resource", async () => {
-    const { token } = await registerAndLogin("reporter@example.com");
+describe("POST /api/resources/:id/reactions rate limiting", () => {
+  it("returns a 429 if too many requests are made", async () => {
+    const user = await registerAndLogin("reactor@example.com");
 
-    await request(app)
+    const resource = await request(app)
       .post("/api/resources")
-      .set("Authorization", `Bearer ${token}`)
-      .send({ title: "Reportable", url: "https://example.com" });
+      .set("Authorization", `Bearer ${user.token}`)
+      .send({
+        title: "MDN Docs",
+        url: "https://developer.mozilla.org",
+        tags: ["JS", " Beginner "],
+      });
 
-    const res = await request(app).get("/api/resources/random");
+    const resourceId = resource.body.resource.id;
+    const route = `/api/resources/${resourceId}/reactions`;
 
-    expect(res.status).toBe(200);
-    expect(res.body.resource).toBeDefined();
-    expect(res.body.resource.id).toBeDefined();
-    expect(res.body.resource.title).toBeDefined();
-    expect(res.body.resource.url).toBeDefined();
-  });
+    const limit = 20;
 
-  it("empty catalog returns 404", async () => {
-    const res = await request(app).get("/api/resources/random");
+    // to make sure the throttling works, make a bunch of requests until we get to the limit
+    for (let i = 0; i < limit; i++) {
+      await request(app)
+        .post(route)
+        .set("Authorization", `Bearer ${user.token}`)
+        .send({ emoji: `emoji-${i}` }) // each emoji is unique and handled in post route handler
+        .expect(201);
+    }
 
-    expect(res.status).toBe(404);
+    // the (limit + 1)th request, should be throttled and return a 429
+    const throttleRes = await request(app)
+      .post(route)
+      .set("Authorization", `Bearer ${user.token}`)
+      .send({ emoji: `emoji-${limit}` })
+      .expect(429);
+
+    // expect the error message to be something about too many requests
+    expect(throttleRes.body.error).toBe(
+      "Too many reactions requested, please try again later",
+    );
   });
 });
 
@@ -657,6 +673,31 @@ describe("POST /api/resources/:id/report", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.resource.reportCount).toBe(1);
+  });
+});
+
+describe("GET /api/resources/random", () => {
+  it("it gives a user a random resource", async () => {
+    const { token } = await registerAndLogin("reporter@example.com");
+
+    await request(app)
+      .post("/api/resources")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Reportable", url: "https://example.com" });
+
+    const res = await request(app).get("/api/resources/random");
+
+    expect(res.status).toBe(200);
+    expect(res.body.resource).toBeDefined();
+    expect(res.body.resource.id).toBeDefined();
+    expect(res.body.resource.title).toBeDefined();
+    expect(res.body.resource.url).toBeDefined();
+  });
+
+  it("empty catalog returns 404", async () => {
+    const res = await request(app).get("/api/resources/random");
+
+    expect(res.status).toBe(404);
   });
 });
 

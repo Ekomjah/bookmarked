@@ -3,8 +3,20 @@ import { prisma } from "../db";
 import { requireAuth } from "../middleware/auth";
 import { resourcesToCsv } from "../utils/csv";
 import { subDays } from "date-fns";
+import rateLimit from "express-rate-limit";
 
 const router = express.Router();
+
+const reactionsLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => req.user!.id, // per-user rate limit but not per-IP, otherwise limitter would interfere with correct results
+  message: {
+    error: "Too many reactions requested, please try again later",
+  },
+});
 
 const resourceInclude = {
   submittedBy: { select: { id: true, displayName: true, email: true } },
@@ -273,6 +285,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
 router.post(
   "/:id/reactions",
   requireAuth,
+  reactionsLimiter,
   async (req: Request, res: Response) => {
     try {
       const { emoji } = req.body;
