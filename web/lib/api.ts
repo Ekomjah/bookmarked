@@ -70,11 +70,14 @@ export function getResource(id: string) {
 }
 
 export function listResources(
-  params: { tag?: string; submittedBy?: string } = {},
+  params: { tag?: string; submittedBy?: string; days?: number | null } = {},
 ) {
   const search = new URLSearchParams();
   if (params.tag) search.set("tag", params.tag);
   if (params.submittedBy) search.set("submittedBy", params.submittedBy);
+  if (params.days !== undefined && params.days !== null && params.days > 0) {
+    search.set("days", String(params.days));
+  }
   const query = search.toString() ? `?${search.toString()}` : "";
   return request<{ resources: Resource[] }>(`/api/resources${query}`);
 }
@@ -168,7 +171,6 @@ export async function exportResources(
   return { blob, filename };
 }
 
-
 export function removeReaction(
   input: { resourceId: string; reactionId: string },
   token: string,
@@ -177,9 +179,4 @@ export function removeReaction(
     `/api/resources/${input.resourceId}/reactions/${input.reactionId}`,
     { method: "DELETE", token },
   );
-}
-
-export function listTrendingResources(days: number | null) {
-  const query = days !== null && days > 0 ? `?days=${days}` : "";
-  return request<{ resources: Resource[] }>(`/api/resources/trending${query}`);
 }

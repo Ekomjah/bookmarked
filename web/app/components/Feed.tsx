@@ -27,29 +27,10 @@ export default function Feed({ auth, socket }: FeedProps) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    listTrendingResources(days)
-      .then(({ resources: fetched }) => {
-        if (!cancelled) setResources(fetched);
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Something went wrong");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [days]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
     listResources({
       tag: tagFilter || undefined,
       submittedBy: mineOnly && auth ? auth.user.id : undefined,
+      days: days,
     })
       .then(({ resources: fetched }) => {
         if (!cancelled) setResources(fetched);
@@ -65,7 +46,7 @@ export default function Feed({ auth, socket }: FeedProps) {
     return () => {
       cancelled = true;
     };
-  }, [tagFilter, mineOnly, auth]);
+  }, [tagFilter, mineOnly, auth, days]);
 
   useEffect(() => {
     if (!socket) return;
@@ -119,7 +100,12 @@ export default function Feed({ auth, socket }: FeedProps) {
     <div className="feed">
       <div className="filter-bar">
         <TagFilter tags={tags} value={tagFilter} onChange={setTagFilter} />
-        <select value={days ?? ""} onChange={(e) => setDays(e.target.value === "" ? null : Number(e.target.value))}>
+        <select
+          value={days ?? ""}
+          onChange={(e) =>
+            setDays(e.target.value === "" ? null : Number(e.target.value))
+          }
+        >
           <option value="">All time</option>
           <option value="1">Today</option>
           <option value="7">Last 7 days</option>
