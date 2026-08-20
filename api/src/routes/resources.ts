@@ -57,7 +57,7 @@ router.get("/export", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/resources?tag=<tag>&submittedBy=<userId>
+// GET /api/resources?tag=<tag>&submittedBy=<userId>&trending=<days>
 router.get("/", async (req: Request, res: Response) => {
   try {
     const { tag, submittedBy, days } = req.query;
@@ -82,20 +82,22 @@ router.get("/", async (req: Request, res: Response) => {
         submittedBy: { select: { id: true, displayName: true, email: true } },
         reactions: isTrending
           ? {
-              where: { createdAt: { gte: cutOff } },
-              include: {
-                user: { select: { id: true, displayName: true, email: true } },
-              },
-              orderBy: { createdAt: "asc" as const },
-            }
+            where: { createdAt: { gte: cutOff } },
+            include: {
+              user: { select: { id: true, displayName: true, email: true } },
+            },
+            orderBy: { createdAt: "asc" as const },
+          }
           : resourceInclude.reactions,
       },
     });
     const result = isTrending
       ? resources
-          .filter((resource) => resource.reactions.length > 0)
-          .sort((a, b) => b.reactions.length - a.reactions.length)
+        .filter((resource) => resource.reactions.length > 0)
+        .sort((a, b) => b.reactions.length - a.reactions.length)
       : resources;
+
+    if (result.length === 0) return res.json({ resources: [] });
 
     return res.json({ resources: result });
   } catch (err) {

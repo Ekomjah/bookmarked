@@ -52,8 +52,11 @@ export default function Feed({ auth, socket }: FeedProps) {
     if (!socket) return;
 
     function handleCreated(resource: Resource) {
+      if (days !== null) return;
+
       const matchesMineOnlyFilter =
         !mineOnly || (auth && resource?.submittedBy?.id === auth.user.id);
+
       const matchesTagFilter =
         !tagFilter || (resource.tags && resource.tags.includes(tagFilter));
 
@@ -74,7 +77,7 @@ export default function Feed({ auth, socket }: FeedProps) {
       socket.off("resource:created", handleCreated);
       socket.off("resource:updated", handleUpdated);
     };
-  }, [socket, auth, mineOnly, tagFilter]);
+  }, [socket, auth, mineOnly, tagFilter, days]);
 
   const tags = useMemo(() => {
     const set = new Set<string>();
