@@ -176,7 +176,26 @@ describe("GET /api/resources", () => {
     expect(res.body.resources[0].title).toBe("CSS Tricks");
   });
 
-  
+  it("filters resources from a particular user ONLY", async () => {
+    const { token: myToken, user: myUser } = await registerAndLogin("my@example.com");
+    const { token: foreignToken } = await registerAndLogin("foreign@example.com");
+
+    await request(app)
+      .post("/api/resources")
+      .set("Authorization", `Bearer ${myToken}`)
+      .send({ title: "My Post", url: "https://example.com", tags: ["my"] });
+
+    await request(app)
+      .post("/api/resources")
+      .set("Authorization", `Bearer ${foreignToken}`)
+      .send({ title: "Foreign Post", url: "https://example.com", tags: ["foreign"] });
+
+    const res = await request(app).get(`/api/resources`).query({ submittedBy: myUser.id })
+    expect(res.status).toBe(200);
+    expect(res.body.resources).toHaveLength(1);
+    expect(res.body.resources[0].title).toBe("My Post");
+  })
+
   it.each([7, 14, 30])(
     "filters posts based on reactions within a given time window (%i)",
     async (day) => {
@@ -253,6 +272,90 @@ describe("GET /api/resources", () => {
       expect(res.body.resources).not.toContain(boringRes);
     },
   );
+
+  it("combines tag, submittedBy, and days filters together", async () => {
+    const { token: myToken, user: myUser } = await registerAndLogin("combo-mine@example.com");
+    const { token: foreignToken } = await registerAndLogin("combo-foreign@example.com");
+
+    // my user: two "js"-tagged posts (no reactions) + one "rare"-tagged post (reactions below)
+    await request(app)
+      .post("/api/resources")
+      .set("Authorization", `Bearer ${myToken}`)
+      .send({ title: "My JS Post 1", url: "https://example.com/mine-1", tags: ["js"] });
+
+    await request(app)
+      .post("/api/resources")
+      .set("Authorization", `Bearer ${myToken}`)
+      .send({ title: "My JS Post 2", url: "https://example.com/mine-2", tags: ["js"] });
+
+    const rareRes = await request(app)
+      .post("/api/resources")
+      .set("Authorization", `Bearer ${myToken}`)
+      .send({ title: "My Rare Post", url: "https://example.com/mine-rare", tags: ["rare"] });
+
+    const rareResourceId = rareRes.body.resource.id;
+
+    // foreign user: one overlapping "js" post + one overlapping "rare" post (with reactions)
+    await request(app)
+      .post("/api/resources")
+      .set("Authorization", `Bearer ${foreignToken}`)
+      .send({ title: "Foreign JS Post", url: "https://example.com/foreign-js", tags: ["js"] });
+
+    const foreignRareRes = await request(app)
+      .post("/api/resources")
+      .set("Authorization", `Bearer ${foreignToken}`)
+      .send({ title: "Foreign Rare Post", url: "https://example.com/foreign-rare", tags: ["rare"] });
+
+    const foreignRareResourceId = foreignRareRes.body.resource.id;
+
+    // react to my rare post 3 times, then backdate the earliest reaction outside the days window
+    await request(app)
+      .post(`/api/resources/${rareResourceId}/reactions`)
+      .set("Authorization", `Bearer ${myToken}`)
+      .send({ emoji: "⭐" });
+
+    await request(app)
+      .post(`/api/resources/${rareResourceId}/reactions`)
+      .set("Authorization", `Bearer ${foreignToken}`)
+      .send({ emoji: "👍" });
+
+    const thirdReactionRes = await request(app)
+      .post(`/api/resources/${rareResourceId}/reactions`)
+      .set("Authorization", `Bearer ${myToken}`)
+      .send({ emoji: "🔥" });
+
+    const earliestReactionId = thirdReactionRes.body.resource.reactions[0].id;
+    const outsideWindow = subDays(new Date(), 10);
+
+    await prisma.reaction.update({
+      where: { id: earliestReactionId },
+      data: { createdAt: outsideWindow },
+    });
+
+    // react to the foreign rare post twice, well within the window — should still be excluded by submittedBy
+    await request(app)
+      .post(`/api/resources/${foreignRareResourceId}/reactions`)
+      .set("Authorization", `Bearer ${foreignToken}`)
+      .send({ emoji: "⭐" });
+
+    await request(app)
+      .post(`/api/resources/${foreignRareResourceId}/reactions`)
+      .set("Authorization", `Bearer ${myToken}`)
+      .send({ emoji: "👍" });
+
+    const res = await request(app).get("/api/resources").query({
+      tag: "rare",
+      submittedBy: myUser.id,
+      days: 7,
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.resources).toHaveLength(1);
+    expect(res.body.resources[0].id).toBe(rareResourceId);
+    expect(res.body.resources[0].title).toBe("My Rare Post");
+    // 3 reactions posted, 1 backdated outside the window — only 2 should remain
+    expect(res.body.resources[0].reactions).toHaveLength(2);
+  });
 });
 
 describe("GET /api/resources/tag-counts", () => {

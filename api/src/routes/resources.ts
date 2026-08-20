@@ -133,7 +133,6 @@ router.get("/leaderboard", async (_req: Request, res: Response) => {
 });
 
 // GET /api/resources/random
-// Registered before "/:id" so it is not matched as a resource id.
 router.get("/random", async (req: Request, res: Response) => {
   try {
     const allResource = await prisma.resource.findMany({
@@ -155,7 +154,6 @@ router.get("/random", async (req: Request, res: Response) => {
 });
 
 // GET /api/resources/tag-counts
-// Registered before "/:id" so it is not matched as a resource id.
 router.get("/tag-counts", async (_req: Request, res: Response) => {
   try {
     const tagCounts = await prisma.resource.groupBy({
